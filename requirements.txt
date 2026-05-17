@@ -1,0 +1,47 @@
+# Image processing
+opencv-python==4.9.0.80
+scikit-image==0.22.0
+Pillow==10.3.0
+tifffile==2024.2.12
+imageio==2.34.1
+
+# Scientific computing
+numpy==1.26.4
+scipy==1.13.0
+pandas==2.2.2
+matplotlib==3.8.4
+seaborn==0.13.2
+
+# Deep learning
+torch>=2.1.0
+torchvision>=0.16.0
+segmentation-models-pytorch==0.3.3
+albumentations==1.4.3
+
+# Mask R-CNN / instance segmentation
+# detectron2  # install separately: see https://detectron2.readthedocs.io/
+
+# Feature extraction
+mahotas==1.4.13
+scikit-learn==1.4.2
+
+# Annotation / labeling
+labelme==5.4.1
+read-roi==1.7.0
+
+# Claude API
+anthropic==0.25.0
+
+# Web dashboard
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+jinja2==3.1.4
+plotly==5.22.0
+aiofiles==23.2.1
+
+# Utilities
+tqdm==4.66.2
+pyyaml==6.0.1
+h5py==3.11.0
+zarr==2.17.2
+jupyter==1.0.0

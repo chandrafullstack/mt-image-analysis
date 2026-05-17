@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Project-generated data/artifacts
+data/
+outputs/
+
+# Large microscopy files
+*.tif
+*.tiff
+*.zip
+
+# Jupyter
+.ipynb_checkpoints/

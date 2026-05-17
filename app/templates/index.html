@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitochondria Health Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>MS EM Image Analysis Dashboard</h1>
+        <div id="summary-stats" class="stats-bar">Loading...</div>
+    </header>
+
+    <main>
+        <!-- Tab navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="mito-tab">Mitochondria G-Ratio</button>
+            <button class="tab-btn" data-tab="neuron-tab">Neuron G-Ratio (Myelin)</button>
+            <button class="tab-btn" data-tab="cross-tab">Cross-Tabulation</button>
+        </div>
+
+        <!-- Tab 1: Mitochondria scatter plot -->
+        <div id="mito-tab" class="tab-content active">
+            <div class="chart-container">
+                <div id="gratio-chart"></div>
+                <div id="image-popup" class="image-popup" style="display:none;">
+                    <img id="popup-img" src="" alt="Mitochondrion crop" />
+                    <div id="popup-info"></div>
+                </div>
+            </div>
+            <div class="controls">
+                <label>Color by:
+                    <select id="color-select">
+                        <option value="classification">Health</option>
+                        <option value="shape_category">Shape</option>
+                        <option value="fission_fusion">Fission/Fusion</option>
+                        <option value="myelin_context">Myelin Context</option>
+                    </select>
+                </label>
+                <label>X-axis:
+                    <select id="x-select">
+                        <option value="instance_id">Instance ID</option>
+                        <option value="aspect_ratio">Aspect Ratio</option>
+                        <option value="area_um2">Area (µm²)</option>
+                        <option value="form_factor">Form Factor</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+
+        <!-- Tab 2: Neuron G-ratio (myelin) -->
+        <div id="neuron-tab" class="tab-content">
+            <div class="chart-container">
+                <div id="neuron-gratio-chart"></div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Cross-tabulation summary -->
+        <div id="cross-tab" class="tab-content">
+            <div class="cross-tables">
+                <div id="health-myelin-table"></div>
+                <div id="shape-myelin-table"></div>
+                <div id="fission-myelin-table"></div>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <h2>Data Table</h2>
+            <div id="data-table-container"></div>
+        </div>
+    </main>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

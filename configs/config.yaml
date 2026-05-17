@@ -1,0 +1,56 @@
+# Paths
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  labeled_dir: data/labeled
+  ilastik_dir: data/ilastik
+  fiji_dir: data/fiji_validation
+
+outputs:
+  predictions_dir: outputs/predictions
+  metrics_dir: outputs/metrics
+  figures_dir: outputs/figures
+  crops_dir: outputs/crops
+
+# Preprocessing
+preprocessing:
+  tile_size: 512
+  overlap: 64
+  clahe_clip_limit: 0.03
+  pixel_size_um: 0.008  # 8 nm per pixel
+
+# Segmentation
+segmentation:
+  method: mitonet  # mitonet | unet
+  mitonet_config: MitoNet_v1
+  unet_encoder: resnet34
+
+# Training (CNN classifier)
+training:
+  lr: 0.0001
+  batch_size: 8
+  epochs: 50
+  crop_size: 64
+  num_classes: 2
+  optimizer: Adam
+  scheduler: CosineAnnealingLR
+
+# Labeling thresholds (from literature)
+labeling:
+  aspect_ratio_threshold: 1.5
+  form_factor_low: 0.4
+  form_factor_high: 1.2
+  roundness_threshold: 0.7
+  gratio_healthy_low: 0.6
+  gratio_healthy_high: 0.8
+  unhealthy_score_threshold: 2
+
+# Claude API
+claude:
+  model: claude-sonnet-4-20250514
+  max_tokens: 512
+
+# Dashboard
+dashboard:
+  host: 0.0.0.0
+  port: 8000
