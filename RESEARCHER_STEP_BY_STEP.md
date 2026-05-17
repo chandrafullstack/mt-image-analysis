@@ -15,6 +15,12 @@ This guide is for researchers who only want to:
 
 You do NOT need a Claude subscription for normal use.
 
+Also important:
+
+- Claude is optional in this project.
+- It is not used for automatic learning/retraining.
+- Learning happens when you run retraining on your local labeled data.
+
 ## One-Time Setup (Do This Once)
 
 1. Open PowerShell.
@@ -60,10 +66,22 @@ In PowerShell from project root:
 python -m src.researcher_cli --full-image-dir "C:\lab\em_full_images" --serve
 ```
 
+If you want the system to learn from your latest labeled data before running:
+
+```powershell
+python -m src.researcher_cli --retrain --full-image-dir "C:\lab\em_full_images" --seg-method unet --serve
+```
+
 Or with script:
 
 ```powershell
 scripts\run_full_image_flow.bat "C:\lab\em_full_images"
+```
+
+Retrain + run script:
+
+```powershell
+scripts\retrain_and_run_full_image.bat "C:\lab\em_full_images"
 ```
 
 ### Step 3: Open Dashboard in Browser

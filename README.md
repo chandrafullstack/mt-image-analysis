@@ -159,6 +159,11 @@ No, not for the default workflow.
 - Dashboard ingestion and visualization do not call Claude.
 - Claude is only for optional experiment/comparison runs in `src/claude_classifier.py`.
 
+Important:
+
+- Claude is not used for automatic model retraining in this pipeline.
+- Learning is done locally by training U-Net and ResNet on your labeled lab data.
+
 ## Classification Engine (Current State)
 
 There are two classification paths:
@@ -243,6 +248,19 @@ Use this command:
 python -m src.researcher_cli --full-image-dir "C:\\lab\\full_em_images" --seg-method heuristic --serve
 ```
 
+Retrain + run in one command:
+
+```bash
+python -m src.researcher_cli --retrain --full-image-dir "C:\\lab\\full_em_images" --seg-method unet --serve
+```
+
+This will:
+
+1. Retrain U-Net from `data/labeled/segmentation/images` + `data/labeled/segmentation/masks`
+2. Retrain ResNet from `data/labeled/crops/HEALTHY|UNHEALTHY`
+3. Reuse the newly created `outputs/models/unet_best.pt` and `outputs/models/resnet50_best.pt`
+4. Run inference and open dashboard
+
 Outputs are dashboard-ready:
 
 - `outputs/metrics/features_with_gratio.csv`
@@ -272,6 +290,7 @@ In short: your own data -> your own trained weights -> better results on your ow
 Windows helper script for full-image flow:
 
 - `scripts/run_full_image_flow.bat "C:\path\full_images"`
+- `scripts/retrain_and_run_full_image.bat "C:\path\full_images"`
 
 ## Production Training (No Longer Skeleton)
 
