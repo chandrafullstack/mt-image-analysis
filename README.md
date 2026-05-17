@@ -2,6 +2,12 @@
 
 Automated pipeline to classify healthy vs. unhealthy mitochondria in brain cell EM images, calculate G-ratios, and compare traditional deep learning with Claude Vision API.
 
+## Start Here (No ML Background)
+
+If you are a researcher and want a click-by-click workflow, read:
+
+- `RESEARCHER_STEP_BY_STEP.md`
+
 ## Quick Start
 
 ```bash
