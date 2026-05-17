@@ -163,11 +163,10 @@ There are two classification paths:
 	- Additional tags computed: shape category and fission/fusion heuristic state
 
 2. Research path (optional)
-	- CNN module scaffold in `src/cnn_model.py` (ResNet-50 + U-Net utilities)
+	- CNN training in `src/cnn_model.py` (ResNet-50)
+	- U-Net segmentation training in `src/train_unet.py`
 	- Rule-based label assignment and merge logic in `src/labeling.py`
 	- Claude Vision API comparison in `src/claude_classifier.py`
-
-Note: `src/cnn_model.py` currently contains a training skeleton (not a fully wired crop loader/training experiment pipeline yet).
 
 ## How Training Is Done
 
@@ -176,10 +175,11 @@ Current practical training signal:
 - Expert labels from incoming folders become supervised records in `outputs/metrics/features_with_gratio.csv`.
 - These records can be exported to build a train/val split for CNN experiments.
 
-Current repo status for deep training:
+Production deep training paths:
 
-- Rule-based + expert override logic is implemented.
-- Full production training loop for ResNet/U-Net is partially scaffolded and requires finishing dataset loaders and experiment scripts.
+- ResNet health classifier training: `src/cnn_model.py`
+- U-Net mitochondria segmentation training: `src/train_unet.py`
+- Both save best model weights and training histories.
 
 ## Preprocessing Steps
 
@@ -248,6 +248,21 @@ For stronger production segmentation, use trained U-Net weights:
 python -m src.researcher_cli --full-image-dir "C:\\lab\\full_em_images" --seg-method unet --unet-weights "outputs/models/unet_best.pt" --classifier-weights "outputs/models/resnet50_best.pt" --serve
 ```
 
+### What "train and plug in your own weights" means
+
+Plain-language meaning:
+
+1. Train a segmentation model (U-Net) on your lab's annotated masks so the model learns your microscope contrast, staining, and tissue appearance.
+2. Train a classification model (ResNet) on your lab's healthy/unhealthy labels so health decisions match your experts.
+3. Use the saved `.pt` files in inference commands (`--unet-weights` and `--classifier-weights`).
+
+Why this improves reliability:
+
+- Public models often do not perfectly match local imaging conditions.
+- Lab-specific training reduces domain shift and improves detection/classification consistency.
+
+In short: your own data -> your own trained weights -> better results on your own new images.
+
 Windows helper script for full-image flow:
 
 - `scripts/run_full_image_flow.bat "C:\path\full_images"`
@@ -286,6 +301,36 @@ Artifacts:
 - `outputs/models/resnet50_last.pt`
 - `outputs/models/training_history.csv`
 - `outputs/models/dataset_split.csv`
+
+### U-Net Segmentation Training (Annotated Masks)
+
+Expected segmentation training data structure:
+
+```text
+data/labeled/segmentation/images/
+data/labeled/segmentation/masks/
+```
+
+Mask naming:
+
+- If image is `tile_001.png`, mask can be `tile_001_mask.png` (default) or `tile_001.png`.
+
+Train command:
+
+```bash
+python src/train_unet.py --images-dir data/labeled/segmentation/images --masks-dir data/labeled/segmentation/masks --output outputs/models --epochs 30 --batch-size 4
+```
+
+Windows helper script:
+
+- `scripts/train_unet.bat "data\labeled\segmentation\images" "data\labeled\segmentation\masks" "outputs\models"`
+
+Artifacts:
+
+- `outputs/models/unet_best.pt`
+- `outputs/models/unet_last.pt`
+- `outputs/models/unet_training_history.csv`
+- `outputs/models/unet_split.csv`
 
 ## Point-To-Folders CLI (Researcher Friendly)
 
