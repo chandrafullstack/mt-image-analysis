@@ -224,12 +224,81 @@ For researcher incoming crops (`src/incoming_feedback.py`):
 	- `outgoing/rejected` (if unreadable)
 6. Dashboard reads updated CSV and renders results immediately.
 
+## Production-Ready Multi-Object Flow (Full EM Images)
+
+For full EM images containing multiple cellular structures, the pipeline is now two-stage:
+
+1. **Mitochondria detection/segmentation** on each full image
+2. **Per-instance health classification** for each detected mitochondrion
+
+Use this command:
+
+```bash
+python -m src.researcher_cli --full-image-dir "C:\\lab\\full_em_images" --seg-method heuristic --serve
+```
+
+Outputs are dashboard-ready:
+
+- `outputs/metrics/features_with_gratio.csv`
+- `outputs/crops/mito_XXXX.png`
+
+For stronger production segmentation, use trained U-Net weights:
+
+```bash
+python -m src.researcher_cli --full-image-dir "C:\\lab\\full_em_images" --seg-method unet --unet-weights "outputs/models/unet_best.pt" --classifier-weights "outputs/models/resnet50_best.pt" --serve
+```
+
+Windows helper script for full-image flow:
+
+- `scripts/run_full_image_flow.bat "C:\path\full_images"`
+
+## Production Training (No Longer Skeleton)
+
+`src/cnn_model.py` now supports actual training with:
+
+- Real image loading from folders
+- Stratified train/validation split
+- Augmentation + normalization
+- Best-model checkpointing
+- Saved split manifest + training history
+
+Expected training data structure:
+
+```text
+data/labeled/crops/
+	HEALTHY/
+	UNHEALTHY/
+```
+
+Train command:
+
+```bash
+python src/cnn_model.py --data data/labeled/crops --output outputs/models --epochs 25 --batch-size 16
+```
+
+Windows helper script for training:
+
+- `scripts/train_classifier.bat "data\labeled\crops" "outputs\models"`
+
+Artifacts:
+
+- `outputs/models/resnet50_best.pt`
+- `outputs/models/resnet50_last.pt`
+- `outputs/models/training_history.csv`
+- `outputs/models/dataset_split.csv`
+
 ## Point-To-Folders CLI (Researcher Friendly)
 
 Researchers can point directly to their own folders (without manual copying):
 
 ```bash
 python -m src.researcher_cli --healthy-dir "C:\\lab\\healthy" --unhealthy-dir "C:\\lab\\unhealthy" --serve
+```
+
+Or for full EM images with many structures:
+
+```bash
+python -m src.researcher_cli --full-image-dir "C:\\lab\\full_em_images" --serve
 ```
 
 Windows helper script:
