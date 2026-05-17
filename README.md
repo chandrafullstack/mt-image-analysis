@@ -40,6 +40,86 @@ uvicorn app.main:app --reload --port 8000
 # → Open http://localhost:8000
 ```
 
+## Researcher Workflow (Use Your Own Images)
+
+This project supports a simple expert-feedback loop using folders:
+
+- `incoming/healthy`
+- `incoming/unhealthy`
+- `outgoing/processed/healthy`
+- `outgoing/processed/unhealthy`
+- `outgoing/rejected`
+
+How it works:
+
+1. Researchers drop mitochondria-centered EM crops into `incoming/healthy` or `incoming/unhealthy`.
+2. Open or refresh the dashboard page (`/api/summary` and `/api/gratio-data` trigger auto-ingestion).
+3. New images are processed and appended into `outputs/metrics/features_with_gratio.csv`.
+4. Crops are copied into `outputs/crops` for hover previews on the chart.
+5. Processed files are moved to `outgoing/processed/...`.
+6. Invalid or unreadable files are moved to `outgoing/rejected`.
+
+Accepted file types:
+
+- `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`
+
+Recommended input quality:
+
+- Single mitochondrion near the center
+- Grayscale EM crop
+- Reasonable contrast between organelle and background
+- Avoid montage sheets or multi-panel figures
+
+Manual ingestion command (optional):
+
+```bash
+python src/incoming_feedback.py
+```
+
+Windows shortcut:
+
+- Double-click `scripts/ingest_incoming.bat`
+
+## Deploy On Another Researcher's Computer (Windows)
+
+### Option A: Run from source (recommended)
+
+1. Install Python 3.10+.
+2. Open PowerShell in the project root.
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Start the app:
+
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+5. Open browser:
+
+```text
+http://127.0.0.1:8000
+```
+
+Windows shortcut:
+
+- Double-click `scripts/start_dashboard.bat`
+
+### Option B: Conda environment (lab machines)
+
+```bash
+conda env create -f environment.yml
+conda activate mito
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+### Common startup issue
+
+If you see `ModuleNotFoundError: No module named 'app'`, it usually means the command was launched from the wrong folder. Start from the project root (`mito_classifier`) and re-run the same command.
+
 ## Dashboard
 
 The web dashboard displays an interactive Plotly scatter chart of G-ratios. **Hover over any data point** to see the actual EM crop image of that mitochondrion.

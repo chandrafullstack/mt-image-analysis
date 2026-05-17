@@ -6,6 +6,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
+from src.incoming_feedback import ingest_incoming_feedback
+
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
@@ -27,6 +29,9 @@ async def get_gratio_data():
     Return mitochondria data as JSON for Plotly.
     Includes health, shape, fission/fusion, and myelin context.
     """
+    # Pull in any newly dropped expert-labeled files before serving chart data.
+    ingest_incoming_feedback(quiet=True)
+
     if not DATA_PATH.exists():
         return JSONResponse(content=[])
 
@@ -63,6 +68,9 @@ async def get_neuron_gratio():
 @router.get("/api/summary")
 async def get_summary():
     """Return aggregate statistics for the dashboard header."""
+    # Keep summary in sync with incoming/healthy and incoming/unhealthy folders.
+    ingest_incoming_feedback(quiet=True)
+
     if not DATA_PATH.exists():
         return JSONResponse(content={
             "total_mitochondria": 0,
