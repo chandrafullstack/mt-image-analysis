@@ -120,6 +120,122 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 If you see `ModuleNotFoundError: No module named 'app'`, it usually means the command was launched from the wrong folder. Start from the project root (`mito_classifier`) and re-run the same command.
 
+## Is Deployment Self-Sufficient?
+
+Yes for local dashboard inference and rule-based classification.
+
+- No cloud service is required for the dashboard path.
+- Researchers can run everything on their own Windows machine after installing dependencies.
+- Claude API is optional and only used if you explicitly run `src/claude_classifier.py`.
+
+## Dependency Breakdown
+
+Core runtime (required for researcher workflow):
+
+- Python 3.10+
+- numpy, scipy, pandas
+- scikit-image, Pillow, tifffile
+- fastapi, uvicorn, jinja2
+
+Optional model training/inference stack:
+
+- torch, torchvision, segmentation-models-pytorch, albumentations
+
+Optional Claude comparison:
+
+- anthropic package
+- `ANTHROPIC_API_KEY` environment variable
+
+## Do Researchers Need a Claude Subscription?
+
+No, not for the default workflow.
+
+- Dashboard ingestion and visualization do not call Claude.
+- Claude is only for optional experiment/comparison runs in `src/claude_classifier.py`.
+
+## Classification Engine (Current State)
+
+There are two classification paths:
+
+1. Operational path (used by dashboard today)
+	- Feature extraction from each crop (area, perimeter, aspect ratio, form factor, roundness, eccentricity, solidity, approximate g-ratio)
+	- Label source for researcher-uploaded data is the folder choice (`incoming/healthy` or `incoming/unhealthy`)
+	- Additional tags computed: shape category and fission/fusion heuristic state
+
+2. Research path (optional)
+	- CNN module scaffold in `src/cnn_model.py` (ResNet-50 + U-Net utilities)
+	- Rule-based label assignment and merge logic in `src/labeling.py`
+	- Claude Vision API comparison in `src/claude_classifier.py`
+
+Note: `src/cnn_model.py` currently contains a training skeleton (not a fully wired crop loader/training experiment pipeline yet).
+
+## How Training Is Done
+
+Current practical training signal:
+
+- Expert labels from incoming folders become supervised records in `outputs/metrics/features_with_gratio.csv`.
+- These records can be exported to build a train/val split for CNN experiments.
+
+Current repo status for deep training:
+
+- Rule-based + expert override logic is implemented.
+- Full production training loop for ResNet/U-Net is partially scaffolded and requires finishing dataset loaders and experiment scripts.
+
+## Preprocessing Steps
+
+For stack-based pipeline (`src/preprocessing.py`):
+
+1. Load TIFF (single image or stack)
+2. Normalize intensities to [0, 1]
+3. Apply CLAHE contrast enhancement
+4. Tile into overlapping 512x512 patches (default overlap 64)
+5. Save tiles
+
+For researcher incoming crops (`src/incoming_feedback.py`):
+
+1. Load grayscale crop
+2. Otsu thresholding (fallback to mean threshold)
+3. Remove tiny objects/holes
+4. Keep largest connected component as mitochondrion candidate
+5. Compute morphology metrics + approximate g-ratio via erosion shell
+6. Save crop to dashboard gallery and append row to metrics CSV
+
+## Assumptions
+
+- Input images are EM grayscale crops, ideally one mitochondrion per image.
+- Uploaded healthy/unhealthy folders are trusted expert labels.
+- Pixel size defaults to 0.008 um/pixel in feature conversions.
+- Fission/fusion state is heuristic (solidity/eccentricity based), not temporal tracking.
+- Myelin context in this flow defaults to `UNASSIGNED` unless separate myelin segmentation outputs are provided.
+
+## Clear Data-to-Result Flow
+
+1. Researchers provide labeled crops:
+	- `incoming/healthy`
+	- `incoming/unhealthy`
+2. App ingests new files (auto on dashboard API call or manual run)
+3. Features are extracted and appended to:
+	- `outputs/metrics/features_with_gratio.csv`
+4. Crop images are copied to:
+	- `outputs/crops`
+5. Original files are moved to:
+	- `outgoing/processed/healthy`
+	- `outgoing/processed/unhealthy`
+	- `outgoing/rejected` (if unreadable)
+6. Dashboard reads updated CSV and renders results immediately.
+
+## Point-To-Folders CLI (Researcher Friendly)
+
+Researchers can point directly to their own folders (without manual copying):
+
+```bash
+python -m src.researcher_cli --healthy-dir "C:\\lab\\healthy" --unhealthy-dir "C:\\lab\\unhealthy" --serve
+```
+
+Windows helper script:
+
+- `scripts/run_researcher_flow.bat "C:\path\healthy" "C:\path\unhealthy"`
+
 ## Dashboard
 
 The web dashboard displays an interactive Plotly scatter chart of G-ratios. **Hover over any data point** to see the actual EM crop image of that mitochondrion.
