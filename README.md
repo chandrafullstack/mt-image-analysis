@@ -37,7 +37,17 @@ artefact in them is reproducible from the scripts here.
 
 ## Quick start
 
-### 1. Environment
+> **Brand new to Python / git?** See [Before you start](#before-you-start)
+> below — it walks you through the one-time install.
+
+### 1. Get the code
+
+```powershell
+git clone https://github.com/chandrafullstack/mt-image-analysis.git
+cd mt-image-analysis
+```
+
+### 2. Environment
 
 ```powershell
 python -m venv .venv
@@ -47,7 +57,18 @@ pip install -r requirements.txt
 
 (Or use `conda env create -f environment.yml`.)
 
-### 2. Set your Claude API key
+### 3. Download the trained models
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\download_models.ps1
+```
+
+This pulls the ResNet-50 classifier into `outputs/models/`. If you also
+want the U-Net segmenter, train one with `scripts\train_unet.bat` — the
+pipeline falls back to a classical Otsu-threshold segmenter if no U-Net
+weights are present, so you can run the dashboard either way.
+
+### 4. Set your Claude API key (only needed for the chat assistant + relabelling)
 
 Copy `.env.example` to `.env` and paste your key:
 
@@ -61,10 +82,11 @@ Or export it directly:
 $env:ANTHROPIC_API_KEY = "sk-ant-..."
 ```
 
-The key is only required for the **labelling** step (during training).
-Trained models run with no external calls.
+The trained models run with **no external calls** — the key is only used
+when you (a) ask the dashboard chat assistant a question, or (b) run a
+fresh round of Claude pseudo-labelling for training.
 
-### 3. Run inference on your own images
+### 5. Run inference on your own images
 
 Drop EM images (PNG / JPG / TIFF) into a folder, then:
 
@@ -78,18 +100,61 @@ python -m src.full_image_inference `
   --classifier-weights outputs/models/resnet50_best.pt
 ```
 
-Pixel size override (e.g. confocal stacks):
+No U-Net weights? Use the heuristic segmenter:
+
+```powershell
+python -m src.full_image_inference `
+  --input-dir "C:\path\to\images" `
+  --metrics-out outputs/metrics/my_metrics.csv `
+  --crops-out outputs/crops/my_crops `
+  --seg-method heuristic `
+  --classifier-weights outputs/models/resnet50_best.pt
+```
+
+Pixel-size override (if your images aren't EM):
 
 ```powershell
 ... --pixel-size-um 0.02
 ```
 
-### 4. Launch the dashboard
+### 6. Launch the dashboard
 
 ```powershell
 scripts\start_dashboard.bat
 # then open http://localhost:8000
 ```
+
+![Dashboard](docs/images/dashboard.png)
+
+---
+
+## Before you start
+
+**Skip this if you already have Python 3.10+ and git installed.**
+
+You'll need three things on Windows:
+
+1. **Python 3.10 or newer**
+   Install from <https://www.python.org/downloads/windows/> — **tick
+   "Add Python to PATH"** on the first screen of the installer.
+   Verify: open PowerShell and run `python --version`.
+
+2. **Git**
+   Install from <https://git-scm.com/download/win> — defaults are fine.
+   Verify: `git --version`.
+
+3. **About 2 GB of free disk space** for the Python virtual environment
+   and the trained model weights.
+
+Optional but recommended:
+
+- **VS Code** (<https://code.visualstudio.com>) — nicer than Notepad
+  for poking at config files.
+- An **Anthropic API key** (<https://console.anthropic.com>) if you want
+  to use the chat assistant or run new labelling rounds. The pre-trained
+  models do **not** need an API key to run.
+
+Once those are installed, jump back up to [Quick start](#quick-start).
 
 ---
 
