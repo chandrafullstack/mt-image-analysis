@@ -103,6 +103,7 @@ def train_one_epoch(model, loader, optimizer, criterion, device):
 
 
 def evaluate(model, loader, criterion, device):
+    import torch  # local import: torch is lazy-loaded in callers
     model.eval()
     total_loss, correct = 0.0, 0
     with torch.no_grad():

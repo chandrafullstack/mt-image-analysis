@@ -5,6 +5,9 @@ from pathlib import Path
 
 from app.routes import router
 
+# Resolve paths against project root, not the CWD where uvicorn was launched.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 app = FastAPI(title="Mitochondria Health Dashboard")
 
 # Serve static files (JS, CSS)
@@ -13,7 +16,7 @@ static_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 # Serve crop images
-crops_dir = Path("outputs/crops")
+crops_dir = PROJECT_ROOT / "outputs" / "crops"
 crops_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/crops", StaticFiles(directory=str(crops_dir)), name="crops")
 

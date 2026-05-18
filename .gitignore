@@ -5,20 +5,60 @@ __pycache__/
 *.so
 .venv/
 venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
 
 # OS / editor
 .DS_Store
 Thumbs.db
 .vscode/
+.idea/
+
+# Secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+*.key
+*api_key*
+*ANTHROPIC_API_KEY*
+secrets.json
+secrets.yaml
 
 # Project-generated data/artifacts
 data/
 outputs/
 
+# Researcher's reference images (private IP — derived from PPT slides etc.)
+incoming/
+
+# Model weights (large + reproducible from training)
+*.pt
+*.pth
+*.onnx
+*.h5
+*.safetensors
+
 # Large microscopy files
 *.tif
 *.tiff
 *.zip
+*.tar
+*.tar.gz
+
+# Logs (may contain partial response data or paths)
+*.log
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Internal / WIP documentation — keep private, not for public repo
+EXPERIMENTS_LOG.md
+PROJECT_CHECKPOINT_*.md
+RESEARCHER_STEP_BY_STEP.md
+README_internal.md
+chat_*.md
+notes_*.md

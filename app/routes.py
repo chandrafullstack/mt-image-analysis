@@ -11,10 +11,12 @@ from src.incoming_feedback import ingest_incoming_feedback
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
-DATA_PATH = Path("outputs/metrics/features_with_gratio.csv")
-NEURON_PATH = Path("outputs/metrics/neuron_gratios.csv")
-REPORT_PATH = Path("outputs/metrics/per_image_report.json")
-CROPS_DIR = Path("outputs/crops")
+# Resolve outputs paths against project root so the API works regardless of CWD.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_PATH = PROJECT_ROOT / "outputs" / "metrics" / "features_with_gratio.csv"
+NEURON_PATH = PROJECT_ROOT / "outputs" / "metrics" / "neuron_gratios.csv"
+REPORT_PATH = PROJECT_ROOT / "outputs" / "metrics" / "per_image_report.json"
+CROPS_DIR = PROJECT_ROOT / "outputs" / "crops"
 
 
 @router.get("/")

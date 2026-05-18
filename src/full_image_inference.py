@@ -21,7 +21,7 @@ from skimage import exposure, filters, measure, morphology
 from src.cnn_model import build_resnet_classifier, build_unet
 
 SUPPORTED_EXTS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
-PIXEL_SIZE_UM = 0.008
+DEFAULT_PIXEL_SIZE_UM = 0.008  # default for EPFL/MitoEM training data; override per dataset via CLI
 
 
 def _load_gray(path: Path) -> np.ndarray:
@@ -42,6 +42,10 @@ def _preprocess(img: np.ndarray) -> np.ndarray:
 
 
 def _tile_predict_unet(img: np.ndarray, model, device, tile_size=512, overlap=64) -> np.ndarray:
+    # torch is an optional heavy dep: import locally so this module still imports
+    # cleanly on machines that only need the heuristic seg path.
+    import torch  # noqa: F401  (used below)
+
     h, w = img.shape
     stride = tile_size - overlap
 
@@ -151,6 +155,8 @@ def _load_classifier(weights_path: str | None):
 def _classify_crop(crop_gray: np.ndarray, classifier_bundle, tf):
     if classifier_bundle is None:
         return None
+    import torch  # local import: torch is optional unless a classifier is wired in
+
     model, device = classifier_bundle
     pil = Image.fromarray((crop_gray * 255).clip(0, 255).astype(np.uint8))
     x = tf(pil).unsqueeze(0).to(device)
@@ -167,6 +173,7 @@ def run_full_image_inference(
     seg_method: str = "heuristic",
     unet_weights: str | None = None,
     classifier_weights: str | None = None,
+    pixel_size_um: float = DEFAULT_PIXEL_SIZE_UM,
 ):
     input_dir = Path(input_dir)
     metrics_out = Path(metrics_out)
@@ -198,7 +205,7 @@ def run_full_image_inference(
             crop_mask = mask[r1:r2, c1:c2]
             crop[~crop_mask] *= 0.3
 
-            s = PIXEL_SIZE_UM
+            s = pixel_size_um
             area_um2 = prop.area * (s ** 2)
             perimeter_um = prop.perimeter * s
             major_um = prop.axis_major_length * s
@@ -207,7 +214,7 @@ def run_full_image_inference(
             form_factor = (4 * np.pi * area_um2) / (perimeter_um ** 2 + 1e-8)
             roundness = (4 * area_um2) / (np.pi * major_um ** 2 + 1e-8)
 
-            membrane_px = max(1, int(round(0.01 / PIXEL_SIZE_UM)))
+            membrane_px = max(1, int(round(0.01 / pixel_size_um)))
             inner = morphology.erosion(crop_mask, morphology.disk(membrane_px))
             area_inner = float(inner.sum())
             d_outer = 2 * np.sqrt(prop.area / np.pi) * s
@@ -276,6 +283,13 @@ if __name__ == "__main__":
     )
     parser.add_argument("--unet-weights", default=None, help="Path to trained U-Net weights (.pt)")
     parser.add_argument("--classifier-weights", default=None, help="Path to trained classifier weights (.pt)")
+    parser.add_argument(
+        "--pixel-size-um",
+        type=float,
+        default=DEFAULT_PIXEL_SIZE_UM,
+        help="Physical pixel size in microns. Default 0.008 (EPFL/MitoEM). "
+             "Override for confocal or other modalities to get correct metric units.",
+    )
     args = parser.parse_args()
 
     run_full_image_inference(
@@ -285,4 +299,5 @@ if __name__ == "__main__":
         seg_method=args.seg_method,
         unet_weights=args.unet_weights,
         classifier_weights=args.classifier_weights,
+        pixel_size_um=args.pixel_size_um,
     )

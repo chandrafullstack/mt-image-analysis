@@ -1,399 +1,179 @@
-# Mitochondria Health Classification
+# Mitochondria Health Classifier
 
-Automated pipeline to classify healthy vs. unhealthy mitochondria in brain cell EM images, calculate G-ratios, and compare traditional deep learning with Claude Vision API.
+End-to-end pipeline for finding mitochondria in electron-microscopy (EM)
+images and scoring each one as **healthy** or **unhealthy**.
 
-## Start Here (No ML Background)
+Built around:
 
-If you are a researcher and want a click-by-click workflow, read:
+- A **U-Net** segmenter that locates individual mitochondria in a full image.
+- A **ResNet-50** classifier that scores each detected mitochondrion.
+- A **Claude vision** labelling loop (3-pass self-consensus) that builds the
+  training set without large-scale manual annotation.
+- A **FastAPI dashboard** for browsing per-image results, crops, and metrics.
 
-- `RESEARCHER_STEP_BY_STEP.md`
+---
 
-## Quick Start
+## What's in the box
 
-```bash
-# 1. Set up environment
-conda create -n mito python=3.10 -y && conda activate mito
-pip install -r requirements.txt
-
-# 2. Set Claude API key (for vision classification)
-set ANTHROPIC_API_KEY=your-key-here
-
-# 3. Download public datasets
-python src/data_download.py
-
-# 4. Preprocess
-python src/preprocessing.py --input data/raw/epfl_rat/training.tif --output data/processed/
-
-# 5. Segment mitochondria
-python src/segmentation.py --input data/processed/ --output outputs/predictions/
-
-# 6. Extract features + G-ratio
-python src/features.py --masks outputs/predictions/ --output outputs/metrics/features.csv
-python src/gratio.py --features outputs/metrics/features.csv --masks outputs/predictions/ --output outputs/metrics/features_with_gratio.csv
-
-# 7. Label (rule-based → Ilastik refinement → merge)
-python src/labeling.py --features outputs/metrics/features_with_gratio.csv --output data/labeled/rule_labels.csv
-
-# 8. Train CNN or run Claude API classification
-python src/cnn_model.py --data data/labeled/ --output outputs/models/
-python src/claude_classifier.py --crops outputs/crops/ --output outputs/metrics/claude_results.csv
-
-# 9. Evaluate
-python src/evaluate.py --results outputs/metrics/ --output outputs/figures/
-
-# 10. Launch interactive dashboard
-uvicorn app.main:app --reload --port 8000
-# → Open http://localhost:8000
+```
+mito_classifier/
+├── src/                     # All pipeline code (segmentation, training, inference, labelling)
+├── app/                     # FastAPI dashboard (routes, templates, static assets)
+├── scripts/                 # CLI wrappers and helper jobs (.bat + .py)
+├── tests/                   # Smoke tests (module imports, pricing table sanity)
+├── configs/                 # YAML configs
+├── notebooks/               # Exploratory notebooks (optional)
+├── data/                    # Inputs (gitignored — supply your own)
+├── outputs/                 # Models, predictions, crops (gitignored)
+├── requirements.txt
+├── environment.yml
+└── README.md
 ```
 
-## Researcher Workflow (Use Your Own Images)
+Data folders and `outputs/` are intentionally **not** tracked — every
+artefact in them is reproducible from the scripts here.
 
-This project supports a simple expert-feedback loop using folders:
+---
 
-- `incoming/healthy`
-- `incoming/unhealthy`
-- `outgoing/processed/healthy`
-- `outgoing/processed/unhealthy`
-- `outgoing/rejected`
+## Quick start
 
-How it works:
+### 1. Environment
 
-1. Researchers drop mitochondria-centered EM crops into `incoming/healthy` or `incoming/unhealthy`.
-2. Open or refresh the dashboard page (`/api/summary` and `/api/gratio-data` trigger auto-ingestion).
-3. New images are processed and appended into `outputs/metrics/features_with_gratio.csv`.
-4. Crops are copied into `outputs/crops` for hover previews on the chart.
-5. Processed files are moved to `outgoing/processed/...`.
-6. Invalid or unreadable files are moved to `outgoing/rejected`.
-
-Accepted file types:
-
-- `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`
-
-Recommended input quality:
-
-- Single mitochondrion near the center
-- Grayscale EM crop
-- Reasonable contrast between organelle and background
-- Avoid montage sheets or multi-panel figures
-
-Manual ingestion command (optional):
-
-```bash
-python src/incoming_feedback.py
-```
-
-Windows shortcut:
-
-- Double-click `scripts/ingest_incoming.bat`
-
-## Deploy On Another Researcher's Computer (Windows)
-
-### Option A: Run from source (recommended)
-
-1. Install Python 3.10+.
-2. Open PowerShell in the project root.
-3. Install dependencies:
-
-```bash
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-4. Start the app:
+(Or use `conda env create -f environment.yml`.)
 
-```bash
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+### 2. Set your Claude API key
+
+Copy `.env.example` to `.env` and paste your key:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-5. Open browser:
+Or export it directly:
 
-```text
-http://127.0.0.1:8000
+```powershell
+$env:ANTHROPIC_API_KEY = "sk-ant-..."
 ```
 
-Windows shortcut:
+The key is only required for the **labelling** step (during training).
+Trained models run with no external calls.
 
-- Double-click `scripts/start_dashboard.bat`
+### 3. Run inference on your own images
 
-### Option B: Conda environment (lab machines)
+Drop EM images (PNG / JPG / TIFF) into a folder, then:
 
-```bash
-conda env create -f environment.yml
-conda activate mito
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```powershell
+python -m src.full_image_inference `
+  --input-dir "C:\path\to\images" `
+  --metrics-out outputs/metrics/my_metrics.csv `
+  --crops-out outputs/crops/my_crops `
+  --seg-method unet `
+  --unet-weights outputs/models/unet_best.pt `
+  --classifier-weights outputs/models/resnet50_best.pt
 ```
 
-### Common startup issue
+Pixel size override (e.g. confocal stacks):
 
-If you see `ModuleNotFoundError: No module named 'app'`, it usually means the command was launched from the wrong folder. Start from the project root (`mito_classifier`) and re-run the same command.
-
-## Is Deployment Self-Sufficient?
-
-Yes for local dashboard inference and rule-based classification.
-
-- No cloud service is required for the dashboard path.
-- Researchers can run everything on their own Windows machine after installing dependencies.
-- Claude API is optional and only used if you explicitly run `src/claude_classifier.py`.
-
-## Dependency Breakdown
-
-Core runtime (required for researcher workflow):
-
-- Python 3.10+
-- numpy, scipy, pandas
-- scikit-image, Pillow, tifffile
-- fastapi, uvicorn, jinja2
-
-Optional model training/inference stack:
-
-- torch, torchvision, segmentation-models-pytorch, albumentations
-
-Optional Claude comparison:
-
-- anthropic package
-- `ANTHROPIC_API_KEY` environment variable
-
-## Do Researchers Need a Claude Subscription?
-
-No, not for the default workflow.
-
-- Dashboard ingestion and visualization do not call Claude.
-- Claude is only for optional experiment/comparison runs in `src/claude_classifier.py`.
-
-Important:
-
-- Claude is not used for automatic model retraining in this pipeline.
-- Learning is done locally by training U-Net and ResNet on your labeled lab data.
-
-## Classification Engine (Current State)
-
-There are two classification paths:
-
-1. Operational path (used by dashboard today)
-	- Feature extraction from each crop (area, perimeter, aspect ratio, form factor, roundness, eccentricity, solidity, approximate g-ratio)
-	- Label source for researcher-uploaded data is the folder choice (`incoming/healthy` or `incoming/unhealthy`)
-	- Additional tags computed: shape category and fission/fusion heuristic state
-
-2. Research path (optional)
-	- CNN training in `src/cnn_model.py` (ResNet-50)
-	- U-Net segmentation training in `src/train_unet.py`
-	- Rule-based label assignment and merge logic in `src/labeling.py`
-	- Claude Vision API comparison in `src/claude_classifier.py`
-
-## How Training Is Done
-
-Current practical training signal:
-
-- Expert labels from incoming folders become supervised records in `outputs/metrics/features_with_gratio.csv`.
-- These records can be exported to build a train/val split for CNN experiments.
-
-Production deep training paths:
-
-- ResNet health classifier training: `src/cnn_model.py`
-- U-Net mitochondria segmentation training: `src/train_unet.py`
-- Both save best model weights and training histories.
-
-## Preprocessing Steps
-
-For stack-based pipeline (`src/preprocessing.py`):
-
-1. Load TIFF (single image or stack)
-2. Normalize intensities to [0, 1]
-3. Apply CLAHE contrast enhancement
-4. Tile into overlapping 512x512 patches (default overlap 64)
-5. Save tiles
-
-For researcher incoming crops (`src/incoming_feedback.py`):
-
-1. Load grayscale crop
-2. Otsu thresholding (fallback to mean threshold)
-3. Remove tiny objects/holes
-4. Keep largest connected component as mitochondrion candidate
-5. Compute morphology metrics + approximate g-ratio via erosion shell
-6. Save crop to dashboard gallery and append row to metrics CSV
-
-## Assumptions
-
-- Input images are EM grayscale crops, ideally one mitochondrion per image.
-- Uploaded healthy/unhealthy folders are trusted expert labels.
-- Pixel size defaults to 0.008 um/pixel in feature conversions.
-- Fission/fusion state is heuristic (solidity/eccentricity based), not temporal tracking.
-- Myelin context in this flow defaults to `UNASSIGNED` unless separate myelin segmentation outputs are provided.
-
-## Clear Data-to-Result Flow
-
-1. Researchers provide labeled crops:
-	- `incoming/healthy`
-	- `incoming/unhealthy`
-2. App ingests new files (auto on dashboard API call or manual run)
-3. Features are extracted and appended to:
-	- `outputs/metrics/features_with_gratio.csv`
-4. Crop images are copied to:
-	- `outputs/crops`
-5. Original files are moved to:
-	- `outgoing/processed/healthy`
-	- `outgoing/processed/unhealthy`
-	- `outgoing/rejected` (if unreadable)
-6. Dashboard reads updated CSV and renders results immediately.
-
-## Production-Ready Multi-Object Flow (Full EM Images)
-
-For full EM images containing multiple cellular structures, the pipeline is now two-stage:
-
-1. **Mitochondria detection/segmentation** on each full image
-2. **Per-instance health classification** for each detected mitochondrion
-
-Use this command:
-
-```bash
-python -m src.researcher_cli --full-image-dir "C:\\lab\\full_em_images" --seg-method heuristic --serve
+```powershell
+... --pixel-size-um 0.02
 ```
 
-Retrain + run in one command:
+### 4. Launch the dashboard
 
-```bash
-python -m src.researcher_cli --retrain --full-image-dir "C:\\lab\\full_em_images" --seg-method unet --serve
+```powershell
+scripts\start_dashboard.bat
+# then open http://localhost:8000
 ```
 
-This will:
+---
 
-1. Retrain U-Net from `data/labeled/segmentation/images` + `data/labeled/segmentation/masks`
-2. Retrain ResNet from `data/labeled/crops/HEALTHY|UNHEALTHY`
-3. Reuse the newly created `outputs/models/unet_best.pt` and `outputs/models/resnet50_best.pt`
-4. Run inference and open dashboard
+## Training pipeline
 
-Outputs are dashboard-ready:
+The classifier is trained on Claude-generated pseudo-labels. The loop:
 
-- `outputs/metrics/features_with_gratio.csv`
-- `outputs/crops/mito_XXXX.png`
+1. Extract crops from a labelled segmentation pass.
+2. Send a sample to Claude with a 3-pass self-consensus protocol
+   ([src/claude_score_crops.py](src/claude_score_crops.py)).
+3. Keep only labels with ≥0.67 vote agreement and ≥0.55 calibrated
+   confidence.
+4. Train ResNet-50 with a **group-aware** train/val/test split
+   (different source images in each split) so the test metric is
+   honest ([src/train_pseudo_labels.py](src/train_pseudo_labels.py)).
+5. Sweep classification thresholds against val
+   ([scripts/threshold_sweep.py](scripts/threshold_sweep.py)).
+6. Retrain on hard negatives from the deployed model
+   ([scripts/round2_hardneg_select.py](scripts/round2_hardneg_select.py)).
 
-For stronger production segmentation, use trained U-Net weights:
+Example training command:
 
-```bash
-python -m src.researcher_cli --full-image-dir "C:\\lab\\full_em_images" --seg-method unet --unet-weights "outputs/models/unet_best.pt" --classifier-weights "outputs/models/resnet50_best.pt" --serve
+```powershell
+python -m src.train_pseudo_labels `
+  --consensus-csv outputs/predictions/round0_200nm_consensus.csv `
+  --consensus-csv outputs/predictions/round1_consensus.csv `
+  --metrics-csv outputs/metrics/round0_200nm.csv `
+  --crops-dir outputs/crops/round0_200nm `
+  --output-dir outputs/models_v2 `
+  --epochs 25 --batch-size 16
 ```
 
-### What "train and plug in your own weights" means
+`--consensus-csv` is repeatable — passing multiple CSVs auto-merges
+and de-duplicates by `crop_file`.
 
-Plain-language meaning:
+---
 
-1. Train a segmentation model (U-Net) on your lab's annotated masks so the model learns your microscope contrast, staining, and tissue appearance.
-2. Train a classification model (ResNet) on your lab's healthy/unhealthy labels so health decisions match your experts.
-3. Use the saved `.pt` files in inference commands (`--unet-weights` and `--classifier-weights`).
+## Cost control
 
-Why this improves reliability:
+The Claude scorer enforces a **hard USD cap** on every run via
+`--budget-usd`. It refuses to make a call that would push the running
+total past the cap. Pricing for supported models is hard-coded in
+[src/claude_score_crops.py](src/claude_score_crops.py); a missing
+model causes an immediate abort rather than surprise spend.
 
-- Public models often do not perfectly match local imaging conditions.
-- Lab-specific training reduces domain shift and improves detection/classification consistency.
+---
 
-In short: your own data -> your own trained weights -> better results on your own new images.
+## Tests
 
-Windows helper script for full-image flow:
-
-- `scripts/run_full_image_flow.bat "C:\path\full_images"`
-- `scripts/retrain_and_run_full_image.bat "C:\path\full_images"`
-
-## Production Training (No Longer Skeleton)
-
-`src/cnn_model.py` now supports actual training with:
-
-- Real image loading from folders
-- Stratified train/validation split
-- Augmentation + normalization
-- Best-model checkpointing
-- Saved split manifest + training history
-
-Expected training data structure:
-
-```text
-data/labeled/crops/
-	HEALTHY/
-	UNHEALTHY/
+```powershell
+python -m pytest tests/ -v
+# or:
+python tests/test_imports.py
+python scripts/import_check.py
 ```
 
-Train command:
+CI runs the same tests on every push — see
+[.github/workflows/ci.yml](.github/workflows/ci.yml).
 
-```bash
-python src/cnn_model.py --data data/labeled/crops --output outputs/models --epochs 25 --batch-size 16
-```
+---
 
-Windows helper script for training:
+## Data sources
 
-- `scripts/train_classifier.bat "data\labeled\crops" "outputs\models"`
+Public datasets the included scripts can pull / consume:
 
-Artifacts:
+- **EPFL Rat Hippocampus** (electron microscopy of CA1 region)
+- **MitoEM** (rat + human cortex, instance-segmented mitochondria)
 
-- `outputs/models/resnet50_best.pt`
-- `outputs/models/resnet50_last.pt`
-- `outputs/models/training_history.csv`
-- `outputs/models/dataset_split.csv`
+See [src/data_download.py](src/data_download.py).
 
-### U-Net Segmentation Training (Annotated Masks)
+---
 
-Expected segmentation training data structure:
+## Notes for researchers
 
-```text
-data/labeled/segmentation/images/
-data/labeled/segmentation/masks/
-```
+- Drop your own labelled images into `incoming/healthy/` and
+  `incoming/unhealthy/`; the dashboard auto-ingests them.
+- Outputs are written under `outputs/`; nothing is sent to any
+  external service except the Claude labelling step (which only fires
+  when you explicitly run [src/claude_score_crops.py](src/claude_score_crops.py)).
+- See [RESEARCHER_STEP_BY_STEP.md](RESEARCHER_STEP_BY_STEP.md) (kept
+  locally, not tracked) for the long-form walk-through.
 
-Mask naming:
+---
 
-- If image is `tile_001.png`, mask can be `tile_001_mask.png` (default) or `tile_001.png`.
+## License
 
-Train command:
-
-```bash
-python src/train_unet.py --images-dir data/labeled/segmentation/images --masks-dir data/labeled/segmentation/masks --output outputs/models --epochs 30 --batch-size 4
-```
-
-Windows helper script:
-
-- `scripts/train_unet.bat "data\labeled\segmentation\images" "data\labeled\segmentation\masks" "outputs\models"`
-
-Artifacts:
-
-- `outputs/models/unet_best.pt`
-- `outputs/models/unet_last.pt`
-- `outputs/models/unet_training_history.csv`
-- `outputs/models/unet_split.csv`
-
-## Point-To-Folders CLI (Researcher Friendly)
-
-Researchers can point directly to their own folders (without manual copying):
-
-```bash
-python -m src.researcher_cli --healthy-dir "C:\\lab\\healthy" --unhealthy-dir "C:\\lab\\unhealthy" --serve
-```
-
-Or for full EM images with many structures:
-
-```bash
-python -m src.researcher_cli --full-image-dir "C:\\lab\\full_em_images" --serve
-```
-
-Windows helper script:
-
-- `scripts/run_researcher_flow.bat "C:\path\healthy" "C:\path\unhealthy"`
-
-## Dashboard
-
-The web dashboard displays an interactive Plotly scatter chart of G-ratios. **Hover over any data point** to see the actual EM crop image of that mitochondrion.
-
-## Pipeline Steps
-
-1. **Data Download** — EPFL & MitoEM public EM datasets
-2. **Preprocessing** — Normalize, CLAHE, tile to 512×512
-3. **Segmentation** — MitoNet (empanada) or U-Net
-4. **Feature Extraction** — Morphology + G-ratio
-5. **Labeling** — Rule-based + Ilastik + Fiji validation
-6. **Classification** — CNN (ResNet-50) and Claude Vision API
-7. **Evaluation** — Accuracy, F1, AUC, confusion matrix
-8. **Dashboard** — FastAPI + Plotly with hover image popups
-
-## Tools Used
-
-- **empanada / MitoNet** — Pre-trained EM mitochondria segmentation
-- **Ilastik** — Interactive object classification for label bootstrapping
-- **Fiji (ImageJ)** — Manual validation and G-ratio spot-checks
-- **Claude API** — Vision-language AI classification
-- **FastAPI + Plotly** — Interactive web dashboard
+MIT — see [LICENSE](LICENSE).
