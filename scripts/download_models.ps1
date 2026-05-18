@@ -6,7 +6,7 @@
 $ErrorActionPreference = "Stop"
 
 $repo    = "chandrafullstack/mt-image-analysis"
-$release = "v1.0-weights"     # GitHub release tag holding the .pt files
+$release = "beta"             # GitHub release tag holding the .pt files
 $dest    = Join-Path $PSScriptRoot "..\outputs\models"
 
 $files = @(
