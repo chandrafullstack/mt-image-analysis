@@ -62,3 +62,9 @@ RESEARCHER_STEP_BY_STEP.md
 README_internal.md
 chat_*.md
 notes_*.md
+
+# Pipeline output / runtime artifacts
+outgoing/
+response.html
+uvicorn.out
+uvicorn.err

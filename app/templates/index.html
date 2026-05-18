@@ -19,18 +19,51 @@
             <button class="tab-btn active" data-tab="mito-tab">Mitochondria G-Ratio</button>
             <button class="tab-btn" data-tab="neuron-tab">Neuron G-Ratio (Myelin)</button>
             <button class="tab-btn" data-tab="cross-tab">Cross-Tabulation</button>
+            <button class="tab-btn" data-tab="assistant-tab">Research Assistant</button>
         </div>
 
         <!-- Tab 1: Mitochondria scatter plot -->
         <div id="mito-tab" class="tab-content active">
-            <div class="chart-container">
+            <div class="chart-area">
                 <div id="gratio-chart"></div>
-                <div id="image-popup" class="image-popup" style="display:none;">
-                    <img id="popup-img" src="" alt="Mitochondrion crop" />
-                    <div id="popup-info"></div>
-                </div>
             </div>
+            <section class="inspector inspector-below" id="inspector">
+                <h3>Inspector</h3>
+                <div class="inspector-images">
+                    <div class="inspector-image-col">
+                        <div class="inspector-col-label">Source image (click a point to load)</div>
+                        <div class="inspector-imgbox">
+                            <img id="inspector-img" src="" alt="Click a point to preview" />
+                            <div class="inspector-placeholder" id="inspector-placeholder">
+                                Click a point to preview the source image.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="inspector-image-col">
+                        <div class="inspector-col-label">
+                            <span>This mitochondrion</span>
+                            <span class="inspector-cropbox-hint">scroll = zoom · drag = pan · double-click = reset</span>
+                        </div>
+                        <div class="inspector-cropbox" id="inspector-cropbox">
+                            <div class="inspector-crop-stage" id="inspector-crop-stage">
+                                <img id="inspector-crop" src="" alt="" draggable="false" />
+                            </div>
+                            <div class="inspector-placeholder" id="inspector-crop-placeholder">
+                                Click a point to view the zoomed crop.
+                            </div>
+                        </div>
+                        <dl class="inspector-meta" id="inspector-meta"></dl>
+                    </div>
+                </div>
+            </section>
             <div class="controls">
+                <label>View:
+                    <select id="view-select">
+                        <option value="image">By image (one dot per image)</option>
+                        <option value="mito">All mitochondria</option>
+                    </select>
+                </label>
+                <button id="back-btn" style="display:none">← Back to image overview</button>
                 <label>Color by:
                     <select id="color-select">
                         <option value="classification">Health</option>
@@ -66,12 +99,86 @@
             </div>
         </div>
 
+        <!-- Tab 4: Research assistant (RAG + tool-use over CSV) -->
+        <div id="assistant-tab" class="tab-content">
+            <div class="assistant-wrap assistant-split">
+                <div class="assistant-left">
+                    <div class="assistant-header">
+                        <h2>Ask the Research Agent</h2>
+                        <p class="muted">Natural-language Q&amp;A over the experiments log + live CSV stats.</p>
+                    </div>
+
+                    <details class="capabilities" open>
+                        <summary><strong>What can I ask?</strong></summary>
+                        <div class="cap-grid">
+                            <div class="cap-card">
+                                <h4>📖 Project history</h4>
+                                <p>Why decisions were made, what failed.</p>
+                                <small><em>"Why did we retrain with hard negatives?"</em></small>
+                            </div>
+                            <div class="cap-card">
+                                <h4>📊 Live data stats</h4>
+                                <p>Counts, medians, breakdowns from the CSV.</p>
+                                <small><em>"Median area of healthy mitos in 200nm?"</em></small>
+                            </div>
+                            <div class="cap-card">
+                                <h4>🔬 Per-image deep dive</h4>
+                                <p>Stats for any specific image filename.</p>
+                                <small><em>"Image with the most unhealthy mitos"</em></small>
+                            </div>
+                            <div class="cap-card">
+                                <h4>🧠 Concept refresher</h4>
+                                <p>U-Net, pixel size, ResNet — explained.</p>
+                                <small><em>"Explain g-ratio in plain language"</em></small>
+                            </div>
+                        </div>
+                    </details>
+
+                    <div id="key-status-bar" class="key-bar">
+                        <span id="key-status-text">Checking API key&hellip;</span>
+                        <form id="key-form" class="key-form" style="display:none">
+                            <input id="key-input" type="password" placeholder="Paste ANTHROPIC_API_KEY (sk-ant-&hellip;)" autocomplete="off" />
+                            <button type="submit">Save for this session</button>
+                        </form>
+                    </div>
+
+                    <div class="faq-chips">
+                        <span class="chip-label">Quick starts:</span>
+                        <button class="chip" data-q="Explain the full training pipeline end-to-end: datasets used, preprocessing, U-Net segmentation training, ResNet classifier training, Claude pseudo-labelling, and how everything connects.">Training pipeline</button>
+                        <button class="chip" data-q="What was the pixel-size saga about?">Pixel-size saga</button>
+                        <button class="chip" data-q="Compare 200nm vs 400nm folders on health and median area">200 vs 400nm</button>
+                        <button class="chip" data-q="Why did we use Claude to label training data?">Why Claude?</button>
+                        <button class="chip" data-q="How many mitochondria are unhealthy and what's the breakdown by resolution?">Unhealthy breakdown</button>
+                        <button class="chip" data-q="What experiments did we try that failed?">Failed experiments</button>
+                        <button class="chip" data-q="Explain how the U-Net was trained">U-Net training</button>
+                    </div>
+                </div>
+
+                <div class="assistant-right">
+                    <div id="chat-log" class="chat-log">
+                        <div class="chat-bubble assistant">
+                            Hi! Ask me anything about this project — the experiments, why we made certain decisions, or current stats from the data. Use a quick start chip on the left, or type your own question below.
+                        </div>
+                    </div>
+                    <div id="followups-bar" class="followups-bar"></div>
+                    <form id="chat-form" class="chat-form">
+                        <input id="chat-input" type="text" placeholder="Ask a question…" autocomplete="off" />
+                        <button type="submit" id="chat-send">Send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <div class="table-section">
-            <h2>Data Table</h2>
-            <div id="data-table-container"></div>
+            <button type="button" id="data-table-toggle" class="data-table-toggle" aria-expanded="false">
+                ▸ Show data table
+            </button>
+            <div id="data-table-wrapper" class="data-table-wrapper" hidden>
+                <div id="data-table-container"></div>
+            </div>
         </div>
     </main>
 
-    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/dashboard.js?v=20260518i"></script>
 </body>
 </html>

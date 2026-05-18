@@ -232,6 +232,11 @@ def run_full_image_inference(
                 {
                     "label": instance_id,
                     "source_file": path.name,
+                    "source_path": str(path.resolve()),
+                    "bbox_y1": int(r1),
+                    "bbox_x1": int(c1),
+                    "bbox_y2": int(r2),
+                    "bbox_x2": int(c2),
                     "area": float(prop.area),
                     "perimeter": float(prop.perimeter),
                     "area_um2": round(float(area_um2), 6),
