@@ -1,6 +1,39 @@
 """
 Rigorous ResNet-50 trainer for pseudo-labelled mitochondria crops.
 
+────────────────────────────────────────────────────────────────────────
+Function map (top-down, in the order they run):
+
+  parse_args()           CLI flags -> argparse.Namespace.
+  train(args)            The whole pipeline. Calls every other function
+                         below in order.
+
+  assemble_dataset(...)  Step 1. Join the Claude consensus CSVs with
+                         the segmentation metrics CSVs, keep only
+                         high-confidence HEALTHY/UNHEALTHY crops, and
+                         return one big pandas DataFrame.
+
+  make_splits(...)       Step 2. Split rows into train / val / test
+                         BY SOURCE IMAGE (not by crop) so the test
+                         metric is honest.
+
+  _make_dataset_class()  Step 3a. Tiny PyTorch Dataset wrapper that
+                         loads a crop PNG and returns (tensor, label).
+                         Lives inside a function only so we can defer
+                         the `torch` import until training time.
+
+  (training loop in train()) — Step 3b. For each epoch:
+       forward pass -> loss -> backprop -> save best by val macro-F1.
+
+  _eval_split(...)       Step 4a. Run the model on a loader, collect
+                         (y_true, y_pred) arrays.
+  _print_metrics(...)    Step 4b. Pretty-print accuracy, per-class
+                         precision/recall/F1, and a confusion matrix.
+
+  _require_torch()       Helper. Imports torch lazily so the module
+                         can be imported on machines without PyTorch.
+────────────────────────────────────────────────────────────────────────
+
 Key differences from src/cnn_model.py train_classifier:
   1) Loads labels from one or more Claude consensus CSVs (not folders),
      joining each crop to its source TIF via the metrics CSV.
