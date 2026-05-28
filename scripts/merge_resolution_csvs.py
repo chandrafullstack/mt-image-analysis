@@ -40,8 +40,16 @@ def main() -> None:
         print("Nothing to merge.")
         return
 
+    # Preserve the per-resolution `label` as `local_label` so the dashboard
+    # can resolve crop PNGs that live in per-resolution subfolders
+    # (outputs/crops/<resolution_group>/mito_{local_label:04d}.png) for
+    # resolutions whose inference wrote into a subdir (e.g. 800nm). The
+    # top-level `label` is then renumbered globally so legacy crops that
+    # were written directly into outputs/crops/ (200nm + 400nm rounds)
+    # still resolve via mito_{label:04d}.png.
+    for f in frames:
+        f["local_label"] = f["label"]
     merged = pd.concat(frames, ignore_index=True)
-    # Renumber instance ids so dashboard hover/crops still resolve uniquely.
     merged["label"] = range(1, len(merged) + 1)
 
     target = OUT / "features_with_gratio.csv"

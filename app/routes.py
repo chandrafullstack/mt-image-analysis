@@ -44,12 +44,31 @@ async def get_gratio_data():
     records = []
     for _, row in df.iterrows():
         instance_id = int(row["label"])
+        # Two crop layouts coexist on disk:
+        #   1) Per-resolution subfolders, e.g. outputs/crops/800nm/mito_{local_label:04d}.png
+        #      (newer runs; local_label is the per-resolution id from the
+        #       feature CSV before global renumbering)
+        #   2) Legacy top-level outputs/crops/mito_{label:04d}.png from earlier
+        #      200nm + 400nm rounds, keyed off the global `label`.
+        # Prefer (1) when both a resolution_group and a local_label are
+        # available, then fall back to (2).
+        res_group = row.get("resolution_group", "unknown")
+        local_label = row.get("local_label", None)
         crop_filename = f"mito_{instance_id:04d}.png"
-        crop_path = CROPS_DIR / crop_filename
+        crop_rel = None
+        if isinstance(res_group, str) and res_group not in ("", "unknown") and pd.notna(local_label):
+            sub_name = f"mito_{int(local_label):04d}.png"
+            sub_path = CROPS_DIR / res_group / sub_name
+            if sub_path.exists():
+                crop_rel = f"/crops/{res_group}/{sub_name}"
+        if crop_rel is None:
+            crop_path = CROPS_DIR / crop_filename
+            if crop_path.exists():
+                crop_rel = f"/crops/{crop_filename}"
         records.append({
             "instance_id": instance_id,
             "source_file": row.get("source_file", "unknown"),
-            "resolution_group": row.get("resolution_group", "unknown"),
+            "resolution_group": res_group,
             "g_ratio": round(float(row.get("g_ratio", 0)), 4),
             "aspect_ratio": round(float(row.get("aspect_ratio", 0)), 2),
             "area_um2": round(float(row.get("area_um2", 0)), 4),
@@ -58,7 +77,7 @@ async def get_gratio_data():
             "shape_category": row.get("shape_category", "OTHER"),
             "fission_fusion": row.get("fission_fusion_state", "NORMAL"),
             "myelin_context": row.get("myelin_context", "UNASSIGNED"),
-            "crop_image": f"/crops/{crop_filename}" if crop_path.exists() else None,
+            "crop_image": crop_rel,
         })
     return JSONResponse(content=records)
 
